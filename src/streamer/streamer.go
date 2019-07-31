@@ -9,39 +9,30 @@ import (
 	"net"
 	"os"
 	"stanza"
-)
+	"ui"
+	"xmpp"
 
-const host = "alumchat.xyz"
-const port = "5222"
+	"github.com/rivo/tview"
+)
 
 type decoderIO struct {
 	r io.Reader
 	w io.Writer
 }
 
+type message struct {
+	XMLName xml.Name `xml:"message"`
+	From    string   `xml:"from,attr"`
+	Body    string   `xml:"body"`
+}
+
 var connected = false
+var connectionId = ""
 
 // Listen starts listening to connection
-func Listen() {
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	for _, ip := range ips {
-		fmt.Println(ip.String())
-	}
-
-	conn, err := net.Dial("tcp", ips[0].String()+":"+port)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	defer conn.Close()
-
+func Listen(conn *net.Conn, host string, debugMode bool, app *tview.Application) {
 	// First XMPP call
-	_, err = fmt.Fprintf(conn, stanza.Start, host)
+	_, err := fmt.Fprintf(*conn, stanza.Start, host)
 
 	if err != nil {
 		log.Println(err)
@@ -49,9 +40,11 @@ func Listen() {
 	}
 
 	// Set XML Decoder as connection listener
-	decoder := xml.NewDecoder(decoderIO{conn, os.Stderr})
-	if decoder != nil {
-		fmt.Println("Succes!")
+	var decoder *xml.Decoder
+	if debugMode {
+		decoder = xml.NewDecoder(decoderIO{*conn, os.Stderr})
+	} else {
+		decoder = xml.NewDecoder(*conn)
 	}
 
 	for {
@@ -62,7 +55,7 @@ func Listen() {
 			// After feature response (second response)
 			case "features":
 				if !connected {
-					_, err = fmt.Fprintf(conn, stanza.StartTLS)
+					_, err = fmt.Fprintf(*conn, stanza.StartTLS)
 
 					if err != nil {
 						log.Println(err)
@@ -76,7 +69,7 @@ func Listen() {
 					InsecureSkipVerify: true,
 				}
 
-				tlsConn := tls.Client(conn, tlsConf)
+				tlsConn := tls.Client(*conn, tlsConf)
 				err := tlsConn.Handshake()
 				if err != nil {
 					log.Println(err.Error())
@@ -84,7 +77,11 @@ func Listen() {
 				}
 
 				//Set decoder with new connection and restart stream
-				decoder = xml.NewDecoder(decoderIO{tlsConn, os.Stderr})
+				if debugMode {
+					decoder = xml.NewDecoder(decoderIO{tlsConn, os.Stderr})
+				} else {
+					decoder = xml.NewDecoder(tlsConn)
+				}
 				_, err = fmt.Fprintf(tlsConn, stanza.Stream, host)
 
 				if err != nil {
@@ -92,19 +89,41 @@ func Listen() {
 					return
 				}
 
+				*conn = tlsConn
 				connected = true
 
-				fmt.Fprintf(tlsConn, stanza.GetRegistrationFields)
-				fmt.Fprintf(tlsConn, stanza.Register, "yair", "test1")
+				// xmpp.Authenticate(conn, ui.Username, ui.Password)
+				xmpp.Authenticate(conn, "yair", "test1")
+			case "success":
+				ui.GoToMainView()
+				_, err = fmt.Fprintf(*conn, stanza.Stream, host)
+				_, err = fmt.Fprintf(*conn, stanza.SessionBind)
+				xmpp.GetRoster(conn)
+				xmpp.SendSimplePresence(conn)
 
-				// Authentication
-				// user := "test1"
-				// password := "test1"
-				// raw := "\x00" + user + "\x00" + password
-				// enc := make([]byte, base64.StdEncoding.EncodedLen(len(raw)))
-				// base64.StdEncoding.Encode(enc, []byte(raw))
-				// fmt.Fprintf(tlsConn, stanza.Auth, "urn:ietf:params:xml:ns:xmpp-sasl", enc)
-
+			case "stream":
+				if connected {
+					fmt.Println(t.Name.Local)
+					connectionId = t.Attr[3].Value
+				}
+			case "presence":
+				// Accept Subscriptions
+				if len(t.Attr) == 3 && t.Attr[2].Value == "subscribe" {
+					xmpp.AcceptUser(conn, t.Attr[0].Value)
+				}
+			case "item":
+				if len(t.Attr) >= 1 && t.Name.Space == "jabber:iq:roster" {
+					ui.AddContact(app, t.Attr[0].Value)
+				}
+			case "message":
+				var msg message
+				err := decoder.DecodeElement(&msg, &t)
+				if err != nil {
+					log.Println(err)
+				}
+				ui.AddMessage(app, msg.From+": "+msg.Body)
+				xmpp.SendMessage(conn, "test1@alumchat.xyz", "Ora ora")
+				// fmt.Printf(stanza.SendMessage, "test1@alumchat.xyz", "yair@alumchat.xyz/"+connectionId, "Ora ora")
 			}
 			// fmt.Println(t.Name.Space + " " + t.Name.Local)
 		}
