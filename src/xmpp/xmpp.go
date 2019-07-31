@@ -23,7 +23,7 @@ func Authenticate(conn *net.Conn, username string, password string) {
 
 // DeleteUser from server
 func DeleteUser(conn *net.Conn, username string, host string) {
-	mail := username + "@" + "host"
+	mail := username + "@" + host
 	fmt.Fprintf(*conn, stanza.Unregister, mail)
 }
 

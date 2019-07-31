@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"net"
 	"xmpp"
 
@@ -33,6 +32,7 @@ func SetUI(conn *net.Conn, ui *tview.Application, host string) {
 			Password = text
 		}).
 		AddButton("Register", func() {
+			xmpp.Register(conn, Username, Password)
 		}).
 		AddButton("Login", func() {
 			xmpp.Authenticate(conn, Username, Password)
@@ -62,7 +62,6 @@ func SetUI(conn *net.Conn, ui *tview.Application, host string) {
 		}).
 		AddButton("Send", func() {
 			xmpp.SendMessage(conn, selectedUser, messageToSend)
-			fmt.Println("Hola")
 		})
 	newMessageForm.SetBorder(true).SetTitle("Write Message").SetTitleAlign(tview.AlignLeft)
 	newMessageForm.SetButtonsAlign(tview.AlignRight)
@@ -77,7 +76,7 @@ func SetUI(conn *net.Conn, ui *tview.Application, host string) {
 	mainGrid.AddItem(messageList, 0, 1, 3, 3, 0, 0, false)
 	mainGrid.AddItem(newMessageForm, 3, 1, 1, 2, 0, 0, true)
 
-	pages.AddPage("main", mainGrid, true, true)
+	pages.AddPage("main", mainGrid, true, false)
 
 	ui.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyCtrlQ {

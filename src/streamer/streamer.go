@@ -93,7 +93,8 @@ func Listen(conn *net.Conn, host string, debugMode bool, app *tview.Application)
 				connected = true
 
 				// xmpp.Authenticate(conn, ui.Username, ui.Password)
-				xmpp.Authenticate(conn, "yair", "test1")
+				// xmpp.Authenticate(conn, "jojo@alumchat.xyz", "dio")
+				// xmpp.DeleteUser(conn, "jojo", "alumchat.xyz")
 			case "success":
 				ui.GoToMainView()
 				_, err = fmt.Fprintf(*conn, stanza.Stream, host)
@@ -103,7 +104,6 @@ func Listen(conn *net.Conn, host string, debugMode bool, app *tview.Application)
 
 			case "stream":
 				if connected {
-					fmt.Println(t.Name.Local)
 					connectionId = t.Attr[3].Value
 				}
 			case "presence":
@@ -122,7 +122,7 @@ func Listen(conn *net.Conn, host string, debugMode bool, app *tview.Application)
 					log.Println(err)
 				}
 				ui.AddMessage(app, msg.From+": "+msg.Body)
-				xmpp.SendMessage(conn, "test1@alumchat.xyz", "Ora ora")
+				// xmpp.SendMessage(conn, "test1@alumchat.xyz", "Ora ora")
 				// fmt.Printf(stanza.SendMessage, "test1@alumchat.xyz", "yair@alumchat.xyz/"+connectionId, "Ora ora")
 			}
 			// fmt.Println(t.Name.Space + " " + t.Name.Local)
