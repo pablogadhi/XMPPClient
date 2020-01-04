@@ -2,7 +2,7 @@
 First project for the networks course
 
 ## Dependencies
-go
+golang
 
 ## Installation
 1. Clone the repository with `git clone https://github.com/pablogadhi/XMPPClient.git`
