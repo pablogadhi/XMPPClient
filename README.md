@@ -1,5 +1,5 @@
 # XMPPClient
-First project for the networks course
+First project for the networks course. It's a TUI client for the XMPP protocol written in golang.
 
 ## Dependencies
 golang
